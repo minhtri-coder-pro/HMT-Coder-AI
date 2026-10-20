@@ -1,0 +1,65 @@
+{
+  "name": "hmt-code-ai",
+  "version": "1.0.9",
+  "author": "HMT Code AI",
+  "private": true,
+  "description": "HMT Code AI desktop coding assistant",
+  "main": "electron.cjs",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "electron": "44.9.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.hmt.codeai",
+    "productName": "HMT Code AI",
+    "asar": true,
+    "files": [
+      "electron.cjs",
+      "preload.cjs",
+      "server.cjs",
+      "public/**/*",
+      "package.json",
+      "xkiro-secret.local.cjs"
+    ],
+    "directories": {
+      "output": "outputs"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "YOUR_GITHUB_USERNAME",
+        "repo": "HMT-Coder-AI",
+        "releaseType": "release",
+        "private": true
+      }
+    ],
+    "win": {
+      "icon": "public/assets/hmt-code-ai.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

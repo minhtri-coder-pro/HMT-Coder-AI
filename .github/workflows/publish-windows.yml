@@ -1,0 +1,39 @@
+name: Build and publish Windows updates
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Set release version and GitHub destination
+        shell: pwsh
+        run: |
+          npm pkg set version="1.0.${{ github.run_number }}"
+          npm pkg set "build.publish[0].provider=github" "build.publish[0].owner=${{ github.repository_owner }}" "build.publish[0].repo=${{ github.event.repository.name }}"
+      - name: Install dependencies
+        run: npm install
+      - name: Add private fallback key to this build
+        shell: pwsh
+        env:
+          XKIRO_API_KEY: ${{ secrets.XKIRO_API_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:XKIRO_API_KEY)) { throw 'Create the repository Actions secret named XKIRO_API_KEY before publishing.' }
+          $jsonKey = ConvertTo-Json -InputObject $env:XKIRO_API_KEY -Compress
+          $utf8 = [System.Text.UTF8Encoding]::new($false)
+          [System.IO.File]::WriteAllText('xkiro-secret.local.cjs', "module.exports = { apiKey: $jsonKey };", $utf8)
+      - name: Build and publish NSIS installer and update metadata
+        run: npm run dist -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
