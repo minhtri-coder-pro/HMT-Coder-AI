@@ -14,7 +14,7 @@ let appDataWriteQueue = Promise.resolve();
 let quitAfterWrites = false;
 let availableUpdate = false;
 const inheritedGitHubToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || '';
-autoUpdater.autoDownload = false;
+autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true;
 autoUpdater.on('checking-for-update', () => windowRef?.webContents.send('update:state', { state: 'checking' }));
 autoUpdater.on('update-available', info => { availableUpdate = true; windowRef?.webContents.send('update:state', { state: 'available', version: info.version }); });
@@ -133,10 +133,6 @@ async function createWindow() {
   ipcMain.handle('update:check', event => {
     if (event.sender !== windowRef?.webContents) throw new Error('Invalid update request.');
     if (!app.isPackaged) return { state: 'development' };
-    if (!process.env.GH_TOKEN && !process.env.GITHUB_TOKEN) {
-      windowRef.webContents.send('update:state', { state: 'auth-required' });
-      return { state: 'auth-required' };
-    }
     return autoUpdater.checkForUpdates().then(() => ({ state: 'checking' }));
   });
   ipcMain.handle('update:download', event => {
@@ -186,7 +182,7 @@ async function createWindow() {
     await fs.promises.writeFile(appDataPath, JSON.stringify(cachedAppData), 'utf8');
     return workspaceRootPath;
   });
-  ipcMain.handle('workspace:save-files', async (event, entries) => {
+  ipcMain.handle('workspace:save-files', async (event, entries, confirmedReplace) => {
     if (event.sender !== windowRef?.webContents) throw new Error('Invalid workspace request.');
     if (!workspaceRootPath || !Array.isArray(entries) || entries.length < 1 || entries.length > 100) throw new Error('Choose a workspace and provide between 1 and 100 files.');
     const root = await fs.promises.realpath(workspaceRootPath);
@@ -211,10 +207,7 @@ async function createWindow() {
       prepared.push({ target, text: entry.text, relative: entry.path });
     }
     const existing = prepared.filter(file => fs.existsSync(file.target));
-    if (existing.length) {
-      const answer = await dialog.showMessageBox(windowRef, { type: 'warning', title: 'Replace existing files?', message: `Replace ${existing.length} existing file(s) in the selected workspace?`, detail: existing.map(file => file.relative).join('\n'), buttons: ['Replace files', 'Cancel'], defaultId: 1, cancelId: 1, noLink: true });
-      if (answer.response !== 0) return { canceled: true };
-    }
+    if (existing.length && confirmedReplace !== true) return { canceled: true };
     for (const file of prepared) {
       const temporary = `${file.target}.${process.pid}.tmp`;
       await fs.promises.writeFile(temporary, file.text, 'utf8');
@@ -222,7 +215,7 @@ async function createWindow() {
     }
     return { saved: prepared.length };
   });
-  ipcMain.handle('workspace:delete-file', async (event, relativePath) => {
+  ipcMain.handle('workspace:delete-file', async (event, relativePath, confirmed) => {
     if (event.sender !== windowRef?.webContents) throw new Error('Invalid workspace request.');
     if (!workspaceRootPath || typeof relativePath !== 'string') throw new Error('Choose a workspace and enter a relative file path.');
     const parts = relativePath.replaceAll('\\', '/').split('/');
@@ -236,8 +229,7 @@ async function createWindow() {
     }
     const targetStat = await fs.promises.lstat(current);
     if (!targetStat.isFile()) throw new Error('Only regular files can be deleted.');
-    const answer = await dialog.showMessageBox(windowRef, { type: 'warning', title: 'Delete workspace file?', message: `Permanently delete “${relativePath}”?`, detail: `Workspace: ${root}`, buttons: ['Delete file', 'Cancel'], defaultId: 1, cancelId: 1, noLink: true });
-    if (answer.response !== 0) return false;
+    if (confirmed !== true) return false;
     await fs.promises.unlink(current);
     return true;
   });
@@ -276,8 +268,7 @@ async function createWindow() {
   });
   await windowRef.loadURL(`http://127.0.0.1:${port}/`);
   logDiagnostic('Main window loaded successfully.');
-  if (app.isPackaged && (process.env.GH_TOKEN || process.env.GITHUB_TOKEN)) autoUpdater.checkForUpdates().catch(error => logDiagnostic(`Automatic update check failed: ${error.stack || error}`));
-  else if (app.isPackaged) windowRef.webContents.send('update:state', { state: 'auth-required' });
+  if (app.isPackaged) autoUpdater.checkForUpdates().catch(error => logDiagnostic(`Automatic update check failed: ${error.stack || error}`));
 }
 
 app.setAppUserModelId('com.hmt.codeai');

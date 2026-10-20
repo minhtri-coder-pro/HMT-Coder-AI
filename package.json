@@ -38,7 +38,7 @@
         "owner": "YOUR_GITHUB_USERNAME",
         "repo": "HMT-Coder-AI",
         "releaseType": "release",
-        "private": true
+        "private": false
       }
     ],
     "win": {

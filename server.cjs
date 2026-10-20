@@ -54,7 +54,13 @@ function startServer(listenPort = port) {
           method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: input.model, messages: input.messages, temperature: 0.3 })
         });
-        res.writeHead(upstream.status, { 'Content-Type': 'application/json' }); res.end(await upstream.text());
+        const upstreamBody = await upstream.text();
+        if (!upstreamBody.trim()) {
+          res.writeHead(upstream.ok ? 502 : upstream.status, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: `xKiro returned an empty response (HTTP ${upstream.status}). Try another model or retry shortly.` }));
+          return;
+        }
+        res.writeHead(upstream.status, { 'Content-Type': 'application/json' }); res.end(upstreamBody);
       } catch (error) {
         res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: error.message || 'Invalid request' }));
       }

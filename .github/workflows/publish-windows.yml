@@ -60,5 +60,9 @@ jobs:
           $version = (node -p "require('./package.json').version").Trim()
           $tag = "v$version"
           $installer = "outputs/HMT Code AI Setup $version.exe"
-          if (-not (Test-Path -LiteralPath $installer)) { throw "Installer was not created: $installer" }
-          gh release upload $tag $installer --clobber
+          $blockmap = "$installer.blockmap"
+          $metadata = "outputs/latest.yml"
+          foreach ($file in @($installer, $blockmap, $metadata)) {
+            if (-not (Test-Path -LiteralPath $file)) { throw "Required update asset was not created: $file" }
+          }
+          gh release upload $tag $installer $blockmap $metadata --clobber
