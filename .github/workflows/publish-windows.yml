@@ -52,3 +52,13 @@ jobs:
         run: npm run dist -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Ensure the installer is attached to the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = (node -p "require('./package.json').version").Trim()
+          $tag = "v$version"
+          $installer = "outputs/HMT Code AI Setup $version.exe"
+          if (-not (Test-Path -LiteralPath $installer)) { throw "Installer was not created: $installer" }
+          gh release upload $tag $installer --clobber
