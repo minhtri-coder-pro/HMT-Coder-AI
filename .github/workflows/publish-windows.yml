@@ -23,6 +23,20 @@ jobs:
         run: |
           npm pkg set version="1.0.${{ github.run_number }}"
           npm pkg set "build.publish[0].provider=github" "build.publish[0].owner=${{ github.repository_owner }}" "build.publish[0].repo=${{ github.event.repository.name }}"
+      - name: Create release tag
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          $tag = "v$version"
+          $existingTag = git ls-remote --tags origin "refs/tags/$tag"
+          if (-not $existingTag) {
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag $tag
+            git push origin $tag
+          } else {
+            Write-Host "Reusing existing release tag $tag"
+          }
       - name: Install dependencies
         run: npm install
       - name: Add private fallback key to this build
